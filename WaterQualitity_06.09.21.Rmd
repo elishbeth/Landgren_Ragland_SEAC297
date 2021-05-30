@@ -7,15 +7,19 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r - data import}
-# IMPORT DATA
 library(readr)
+library(dplyr)
+library(usmap)
+library(ggplot2)
+library(broom)
+
+# IMPORT DATA
 waterQualityData <- read_csv("ImportToR.csv")
 shrimpData <- read_csv("ShrimpToR.csv")
 mapData <- read_csv("MapInR.csv")
+```
 
+```{r - inshore/Offshore}
 # Added offshore/inshore cat variable (catDist)
 waterQualityData <- mutate(waterQualityData, catDist = ifelse(waterQualityData$dist > 50, "Offshore", "Inshore"))
 mapData <- mutate(mapData, catDist = ifelse(mapData$dist > 50, "Offshore", "Inshore"))
@@ -23,12 +27,8 @@ mapData <- mutate(mapData, catDist = ifelse(mapData$dist > 50, "Offshore", "Insh
 
 
 ```{r - Station Map}
-# STATION MAP
-# Libraries
-library(dplyr)
-library(usmap)
-library(ggplot2)
 
+# Cleaning Data
 mapEcoli <- mapData %>% filter(ecoli_collect == "Y") 
 ecoli_offshore <- usmap_transform(mapEcoli%>% filter(catDist == "Offshore")) 
 ecoli_inshore <- usmap_transform(mapEcoli%>% filter(catDist == "Inshore")) 
@@ -61,14 +61,16 @@ plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
   theme(legend.position = "right")
 
 
-#SS MAP
+# Surface Station MAP
 plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
   geom_point(data = ss_transformed, aes(x = decLong.1, y = decLat.1),
              color = "red", alpha = 0.65) +
   labs(title = "All Surface Station Locations") +
   theme(legend.position = "right")
 ```
+
 # E.Coli Counting Equations
+
 
 $$\frac{\text{E. Coli}}{100 \text{ mL}} = \frac{\text{Number of Blue Colonies}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
 $$\frac{\text{Total Count (TC)}}{100 \text{ mL}} = \frac{\text{Number of flourescent colonies + number of blue, non flourescent colonies (if any)}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
@@ -89,7 +91,6 @@ phosphateMod <- waterQualityData %>%
   filter(!is.na(dist)) %>% 
   with(lm(phosphate ~ dist))
 
-# this data has some curvature and the residuals are unevenly distributed, meaning that a linear model may not be the best fit
 
 # residuals vs fitted values
 augment(phosphateMod) %>%
@@ -102,7 +103,6 @@ augment(phosphateMod) %>%
 
 summary(phosphateMod)
 tidy(phosphateMod)
-# there is a weak negative relationship between increased distance from shore and concentration of phosphate. There is a 1.4% chance that we would get the same values if the null hypotheses were true and there was no relationship between phosphate and distance from shore
 
 # boxplot
 waterQualityData %>%
