@@ -1,0 +1,254 @@
+---
+title: "WaterQuality_ 06.09.21"
+author: "Elisabeth Landgren"
+date: "5/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r - data import}
+# IMPORT DATA
+library(readr)
+waterQualityData <- read_csv("ImportToR.csv")
+shrimpData <- read_csv("ShrimpToR.csv")
+mapData <- read_csv("MapInR.csv")
+
+# Added offshore/inshore cat variable (catDist)
+waterQualityData <- mutate(waterQualityData, catDist = ifelse(waterQualityData$dist > 50, "Offshore", "Inshore"))
+mapData <- mutate(mapData, catDist = ifelse(mapData$dist > 50, "Offshore", "Inshore"))
+```
+
+
+```{r - Station Map}
+# STATION MAP
+# Libraries
+library(dplyr)
+library(usmap)
+library(ggplot2)
+
+mapEcoli <- mapData %>% filter(ecoli_collect == "Y") 
+ecoli_offshore <- usmap_transform(mapEcoli%>% filter(catDist == "Offshore")) 
+ecoli_inshore <- usmap_transform(mapEcoli%>% filter(catDist == "Inshore")) 
+ecoli_transformed <- usmap_transform(mapEcoli) 
+ss_transformed <- usmap_transform(mapData)
+
+
+# ECOLI Offshore MAP
+plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
+  geom_point(data = ecoli_offshore, aes(x = decLong.1, y = decLat.1, size = bacteria),
+             color = "blue", alpha = 0.65) +
+  labs(title = "Ecoli Offshore Surface Stations",
+       size = "Total Bacteria/Vol") +
+  theme(legend.position = "right")
+
+# ECOLI Inshore MAP
+plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
+  geom_point(data = ecoli_inshore, aes(x = decLong.1, y = decLat.1, size = bacteria),
+             color = "purple", alpha = 0.65) +
+  labs(title = "Ecoli Inshore Surface Stations",
+       size = "Total Bacteria/Vol") +
+  theme(legend.position = "right")
+
+# ECOLI all Stations MAP
+plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
+  geom_point(data = ecoli_transformed, aes(x = decLong.1, y = decLat.1, size = bacteria),
+             color = "green", alpha = 0.65) +
+  labs(title = "All Ecoli Surface Stations",
+       size = "Total Bacteria/Vol") +
+  theme(legend.position = "right")
+
+
+#SS MAP
+plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
+  geom_point(data = ss_transformed, aes(x = decLong.1, y = decLat.1),
+             color = "red", alpha = 0.65) +
+  labs(title = "All Surface Station Locations") +
+  theme(legend.position = "right")
+```
+# E.Coli Counting Equations
+
+$$\frac{\text{E. Coli}}{100 \text{ mL}} = \frac{\text{Number of Blue Colonies}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
+$$\frac{\text{Total Count (TC)}}{100 \text{ mL}} = \frac{\text{Number of flourescent colonies + number of blue, non flourescent colonies (if any)}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
+
+```{r - phosphate}
+
+waterQualityData %>% 
+  filter(!is.na(phosphate)) %>% 
+  filter(!is.na(dist)) %>% 
+  ggplot(aes(x = dist, y = phosphate))+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE, color = 'steelblue', lwd = 1) + # linear model
+  labs(x = "Distance from Shore (nm)", y = "Concentration of P04 ( uM )", title = "Surface Phospate Concentrations by Increasing Distance from Shore")+
+  theme_minimal()
+
+phosphateMod <- waterQualityData %>% 
+  filter(!is.na(phosphate)) %>% 
+  filter(!is.na(dist)) %>% 
+  with(lm(phosphate ~ dist))
+
+# this data has some curvature and the residuals are unevenly distributed, meaning that a linear model may not be the best fit
+
+# residuals vs fitted values
+augment(phosphateMod) %>%
+    ggplot(aes(y = .resid, x = .fitted)) + 
+    geom_point() + 
+    geom_smooth(se = FALSE) + # se = FALSE removes gray interval
+    geom_hline(yintercept = 0) +  # adds horizontal line as y = 0
+    labs(x = 'Fitted Values', y = 'Residuals', title = 'Residuals vs. Fitted Values') +
+    theme_classic()
+
+summary(phosphateMod)
+tidy(phosphateMod)
+# there is a weak negative relationship between increased distance from shore and concentration of phosphate. There is a 1.4% chance that we would get the same values if the null hypotheses were true and there was no relationship between phosphate and distance from shore
+
+# boxplot
+waterQualityData %>%
+  filter(!is.na(phosphate)) %>% 
+  filter(!is.na(dist)) %>% 
+  ggplot(aes(x = catDist, y = phosphate)) +
+  geom_boxplot() +
+  labs(x = 'Inshore < 50 nm from land, Offshore > 50 nm from land', y = 'Concentration of P04 ( uM )',title= "Surface Phospate Concentrations Inshore versus Offshore") + 
+  theme_minimal()
+  
+```
+```{r - nitrate}
+
+waterQualityData %>% 
+  filter(!is.na(nitrate)) %>% 
+  filter(!is.na(dist)) %>% 
+  ggplot(aes(x = dist, y = nitrate))+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE, color = 'steelblue', lwd = 1) + # linear model
+  labs(x = "Distance from Shore (nm)", y = "Concentration of NO3 ( uM )", title = "Surface Nitrate Concentrations by Increasing Distance from Shore")+
+  theme_minimal()
+
+nitrateMod <- waterQualityData %>% 
+  filter(!is.na(nitrate)) %>% 
+  filter(!is.na(dist)) %>% 
+  with(lm(nitrate ~ dist))
+
+
+# residuals vs fitted values
+augment(nitrateMod) %>%
+    ggplot(aes(y = .resid, x = .fitted)) + 
+    geom_point() + 
+    geom_smooth(se = FALSE) + # se = FALSE removes gray interval
+    geom_hline(yintercept = 0) +  # adds horizontal line as y = 0
+    labs(x = 'Fitted Values', y = 'Residuals', title = 'Residuals vs. Fitted Values') +
+    theme_classic()
+
+summary(nitrateMod)
+tidy(nitrateMod)
+
+# boxplot
+waterQualityData %>%
+  filter(!is.na(nitrate)) %>% 
+  filter(!is.na(dist)) %>% 
+  ggplot(aes(x = catDist, y = nitrate)) +
+  geom_boxplot() +
+  labs(x = 'Inshore < 50 nm from land, Offshore > 50 nm from land', y = 'Concentration of NO3 ( uM )',title= "Surface Nitrate Concentrations Inshore versus Offshore") + 
+  theme_minimal()
+  
+```
+
+```{r - ecoli}
+waterQualityData %>% 
+  ggplot(aes(x = dist, y = waterQualityData$`bac_cnt_48/vol`))+
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE, color = 'steelblue', lwd = 1) + # linear model
+  labs(x = "Distance from Shore (nm)", y = "Total Bacterial Count (count/vol)", title = "Surface Bacterial Count by Increasing Distance from Shore")+
+  theme_minimal()
+
+ecoliMod <- waterQualityData %>%
+  filter(!is.na(dist)) %>% 
+  with(lm(nitrate ~ dist))
+
+# residuals vs fitted values
+augment(ecoliMod) %>%
+    ggplot(aes(y = .resid, x = .fitted)) + 
+    geom_point() + 
+    geom_smooth(se = FALSE) + # se = FALSE removes gray interval
+    geom_hline(yintercept = 0) +  # adds horizontal line as y = 0
+    labs(x = 'Fitted Values', y = 'Residuals', title = 'Residuals vs. Fitted Values') +
+    theme_classic()
+
+summary(ecoliMod)
+tidy(ecoliMod)
+
+# boxplot
+waterQualityData %>% 
+  filter(!is.na(dist)) %>% 
+  ggplot(aes(x = catDist, y = `bac_cnt_48/vol`)) +
+  geom_boxplot() +
+  labs(x = 'Inshore < 50 nm from land, Offshore > 50 nm from land', y = 'Total Bacterial Count (count/vol)') + 
+  theme_minimal()
+
+```
+
+```{r - shrimp all trials}
+# All trials
+shrimpData$Medication <- factor(shrimpData$Medication, levels = c("Control", "Acetaminophen", "Ibuprofen", "Naproxen"))
+
+shrimpData %>% 
+  ggplot(aes(x = Time_Decimal, y = Movement, color = Medication))+
+  scale_color_viridis_d()+
+  geom_smooth(method = 'lm', se = FALSE)+
+  geom_point() +
+  labs(x = "Time Elapsed (Hours)", y = "Movement (0 = dead, 1 = none, 2 = some, 3 = a lot)", title = "All Trials Shrimp Movement Over Time By Medication Exposure")+
+  theme_minimal()
+
+shrimp.mod.all <- shrimpData %>% with(lm(Movement ~ Time_Decimal + Medication))
+summary(shrimp.mod.all)
+
+```
+
+```{r - shrimp individual trials }
+# Trial 2 
+shrimpData%>% filter(Trial == 2) %>% 
+  ggplot(aes(x = Time_Decimal, y =Movement, color = Medication))+
+  scale_color_viridis_d()+
+  geom_smooth(method = 'lm', se = FALSE)+
+  geom_point() +
+  labs(x = "Time Elapsed (Hours)", y = "Movement (0 = dead, 1 = none, 2 = some, 3 = a lot)", title = "Trial 2 - Amount of Movement for Shrimp Over Time By Medication Exposure")+
+  theme_minimal()
+
+shrimp.mod2 <- shrimpData %>% filter(Trial == 2) %>% with(lm(Movement ~ Time_Decimal + Medication))
+summary(shrimp.mod2)
+
+
+# Trial 3
+shrimpData%>% filter(Trial == 3) %>% 
+  ggplot(aes(x = Time_Decimal, y =Movement, color = Medication))+
+  scale_color_viridis_d()+
+  geom_smooth(method = 'lm', se = FALSE)+
+  geom_point() +
+  xlim(c(0,24))+
+  labs(x = "Time Elapsed (Hours)", y = "Movement (0 = dead, 1 = none, 2 = some, 3 = a lot)", title = "Trial 3 - Amount of Movement for Shrimp Over Time By Medication Exposure")+
+  theme_minimal()
+
+shrimp.mod3 <- shrimpData %>% filter(Trial == 3) %>% with(lm(Movement ~ Time_Decimal + Medication))
+summary(shrimp.mod3)
+
+# Trial 4
+shrimpData%>% filter(Trial == 4) %>% 
+  ggplot(aes(x = Time_Decimal, y =Movement, color = Medication))+
+  scale_color_viridis_d()+
+  geom_smooth(method = 'lm', se = FALSE)+
+  geom_point() +
+  xlim(c(0,24))+
+  labs(x = "Time Elapsed (Hours)", y = "Movement (0 = dead, 1 = none, 2 = some, 3 = a lot)", title = "Trial 4 - Amount of Movement for Shrimp Over Time By Medication Exposure")+
+  theme_minimal()
+shrimpData%>% filter(Trial == 3) %>% print(Movement)
+
+shrimp.mod4 <- shrimpData %>% filter(Trial == 3) %>% with(lm(Movement ~ Time_Decimal + Medication))
+summary(shrimp.mod4)
+```
+
+
+
+
+
+
