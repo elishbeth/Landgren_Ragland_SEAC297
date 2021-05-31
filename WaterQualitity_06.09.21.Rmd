@@ -39,7 +39,9 @@ ss_transformed <- usmap_transform(mapData)
 # ECOLI Offshore MAP
 plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
   geom_point(data = ecoli_offshore, aes(x = decLong.1, y = decLat.1, size = bacteria),
-             color = "blue", alpha = 0.65) +
+             color = "#8E3B46", alpha = 0.75) +
+  geom_point(data = ecoli_inshore, aes(x = decLong.1, y = decLat.1, size = bacteria),
+             color = "#38618C", alpha = 0.75) +
   labs(title = "Ecoli Offshore Surface Stations",
        size = "Total Bacteria/Vol") +
   theme(legend.position = "right")
@@ -73,7 +75,7 @@ plot_usmap(include = c(.new_england, .mid_atlantic, .south_atlantic)) +
 
 
 $$\frac{\text{E. Coli}}{100 \text{ mL}} = \frac{\text{Number of Blue Colonies}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
-$$\frac{\text{Total Count (TC)}}{100 \text{ mL}} = \frac{\text{Number of flourescent colonies + number of blue, non flourescent colonies (if any)}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
+$$\frac{\text{Total Coliform (TC)}}{100 \text{ mL}} = \frac{\text{Number of flourescent colonies + number of blue, non flourescent colonies (if any)}}{\text{ Volume of Sample Filtered (mL)}} *100 $$
 
 ```{r - phosphate}
 
@@ -112,6 +114,8 @@ waterQualityData %>%
   geom_boxplot() +
   labs(x = 'Inshore < 50 nm from land, Offshore > 50 nm from land', y = 'Concentration of P04 ( uM )',title= "Surface Phospate Concentrations Inshore versus Offshore") + 
   theme_minimal()
+
+
   
 ```
 ```{r - nitrate}
@@ -212,6 +216,7 @@ shrimpData%>% filter(Trial == 2) %>%
   scale_color_viridis_d()+
   geom_smooth(method = 'lm', se = FALSE)+
   geom_point() +
+  xlim(c(0,24))+
   labs(x = "Time Elapsed (Hours)", y = "Movement (0 = dead, 1 = none, 2 = some, 3 = a lot)", title = "Trial 2 - Amount of Movement for Shrimp Over Time By Medication Exposure")+
   theme_minimal()
 
